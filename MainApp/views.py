@@ -26,7 +26,7 @@ def get_snippet(request,snippet_id):
     try:
         snippet = Snippet.objects.get(id=snippet_id)
     except ObjectDoesNotExist:
-        return render(request, "errors.html", {"error": f"Item with id={snippet_id} not found."})
+        return render(request, "pages/errors.html", {"error": f"Item with id={snippet_id} not found."})
     else:
         context= {
             'pagename': 'Добавление нового сниппета',
