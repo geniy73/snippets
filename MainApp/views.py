@@ -1,7 +1,7 @@
 from django.http import Http404
 from django.shortcuts import render, redirect
+from MainApp.forms import SnippetForm
 from MainApp.models import Snippet
-from django.core.exceptions import ObjectDoesNotExist
 
 
 def index_page(request):
@@ -10,28 +10,54 @@ def index_page(request):
 
 
 def add_snippet_page(request):
-    context = {'pagename': 'Добавление нового сниппета'}
-    return render(request, 'pages/add_snippet.html', context)
+    # Создаем пустую форму при запросе GET
+    if request.method == "GET":
+        form = SnippetForm()
+        context = {
+            'pagename': 'Добавление нового сниппета',
+            'form': form
+            }
+        return render(request, 'pages/add_snippet.html', context)
+    
+    # Получаем данные из формы и на их основе создаем новый Сниппет в БД
+    if request.method == "POST":
+        form = SnippetForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("snippets-list")  # GET /snippets/list
+        return render(request,'pages/add_snippet.html', {'form': form})
 
 
 def snippets_page(request):
-
     snippets = Snippet.objects.all()
-    context = {'pagename': 'Просмотр сниппетов',
-               'snippets': snippets}
+    context = {
+        'pagename': 'Просмотр сниппетов',
+        'snippets': snippets
+        }
     return render(request, 'pages/view_snippets.html', context)
 
 
-def get_snippet(request,snippet_id):
+def snippet_detail(request, snippet_id):
+    context = {'pagename': 'Просмотр сниппета'}
     try:
-        snippet = Snippet.objects.get(id=snippet_id)
-    except ObjectDoesNotExist:
-        return render(request, "pages/errors.html", {"error": f"Item with id={snippet_id} not found."})
+        snippet = Snippet.objects.get(pk=snippet_id)
+    except Snippet.DoesNotExist:
+        return render(request, "pages/errors.html", context | {"error": f"Snippet with id={snippet_id} not found."})
     else:
-        context= {
-            'pagename': 'Добавление нового сниппета',
-            "snippet": snippet
-            }
-        return render(request, 'pages/snippet_page.html', context)   
-
+        context["snippet"] = snippet
+        return render(request, "pages/snippet_detail.html", context)
     
+def delete_snipet(request, snippet_id):
+    snippet = Snippet.objects.get(pk=snippet_id)
+    snippet.delete()
+    return redirect('snippets-list')
+
+def edit_snipet(request, snippet_id, name, lang, code, date):
+    snippet = Snippet.objects.get(id=snippet_id)
+    snippet.name = name
+    snippet.lang = lang
+    snippet.code = code
+    snippet.creation_date = date
+    snippet.save(update_fields=["name", "lang", "code", "creation_date"])
+    return redirect('snippets-list')
+ 
