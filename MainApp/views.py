@@ -4,12 +4,15 @@ from MainApp.forms import SnippetForm
 from MainApp.models import Snippet
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib import auth
+from django.contrib.auth.decorators import login_required
+
 
 def index_page(request):
     context = {'pagename': 'PythonBin'}
     return render(request, 'pages/index.html', context)
 
 
+@login_required(login_url='home')
 def add_snippet_page(request):
     # Создаем пустую форму при запросе GET
     if request.method == "GET":
@@ -33,7 +36,17 @@ def add_snippet_page(request):
 
 
 def snippets_page(request):
-    snippets = Snippet.objects.all()
+    snippets = Snippet.objects.filter(public=True)
+    context = {
+        'pagename': 'Просмотр сниппетов',
+        'snippets': snippets
+        }
+    return render(request, 'pages/view_snippets.html', context)
+
+
+@login_required
+def my_snippets(request):
+    snippets = Snippet.objects.filter(user = request.user)
     context = {
         'pagename': 'Просмотр сниппетов',
         'snippets': snippets
@@ -53,11 +66,11 @@ def snippet_detail(request, snippet_id):
     
 
 
- 
+@login_required
 def snippet_edit(request, snippet_id):
     context = {'pagename': 'Редактирование сниппета'}
     try:
-        snippet = Snippet.objects.get(pk=snippet_id)
+        snippet = Snippet.objects.filter(user=request.user).get(pk=snippet_id)
     except ObjectDoesNotExist:
         raise Http404
     
@@ -80,6 +93,7 @@ def snippet_edit(request, snippet_id):
         data_form = request.POST
         snippet.name = data_form["name"]
         snippet.code = data_form["code"]
+        snippet.public = data_form.get("public", False)
         snippet.save()
         return redirect("snippets-list")
 
@@ -98,9 +112,10 @@ def snippet_edit(request, snippet_id):
 #     snippet.delete()
 #     return redirect('snippets-list')
 
+@login_required
 def snippet_delete(request, snippet_id):
     if request.method == "GET" or request.method == "POST":
-        snippet = get_object_or_404(Snippet, id=snippet_id)
+        snippet = get_object_or_404(Snippet.objects.filter(user=request.user), id=snippet_id)
         snippet.delete()
     return redirect('snippets-list')
 
@@ -116,10 +131,18 @@ def login(request):
             auth.login(request, user)
         else:
             # Return error message
-            pass
+            context = {
+                "pagename": "PythonBin",
+                "errors": ['wrong username or password'],
+            }
+            return render(request, "pages/index.html", context)
     return redirect('home')
 
 
 def logout(request):
     auth.logout(request)
     return redirect("home")
+
+
+
+
